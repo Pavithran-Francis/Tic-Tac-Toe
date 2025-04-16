@@ -13,26 +13,30 @@ export default function Room() {
   const passcode = searchParams.get('passcode')
   const isCreator = searchParams.get('isCreator') === 'true'
   const urlPlayerId = searchParams.get('playerId')
+  const username = searchParams.get('username') || localStorage.getItem('ticTacToeUsername') || 'Player'
   
   const [board, setBoard] = useState(Array(9).fill(null))
   const [isXNext, setIsXNext] = useState(true)
   const [status, setStatus] = useState('')
   const [players, setPlayers] = useState({
-    creator: null,
-    opponent: null,
+    X: { id: null, username: null, score: 0 },
+    O: { id: null, username: null, score: 0 }
   })
+  
   // Get playerId from URL or localStorage, or generate a new one
   const [playerId] = useState(() => {
     return urlPlayerId || 
            localStorage.getItem('ticTacToePlayerId') || 
            'player-' + Date.now().toString(16) + Math.random().toString(16).slice(2)
   })
+  
   const [playerSymbol, setPlayerSymbol] = useState(null)
   const [winner, setWinner] = useState(null)
   const [gameOver, setGameOver] = useState(false)
   const [error, setError] = useState(null)
+  const [switchPlayersOnRestart, setSwitchPlayersOnRestart] = useState(false)
   
-  // Connect to socket - NOTE: Destructure to get socket and connectionError
+  // Connect to socket
   const { socket, connectionError } = useSocket(roomId)
   
   // Set connection error if any
@@ -42,15 +46,20 @@ export default function Room() {
     }
   }, [connectionError])
   
+  // Store username and playerId in localStorage
+  useEffect(() => {
+    if (username) {
+      localStorage.setItem('ticTacToeUsername', username)
+    }
+    localStorage.setItem('ticTacToePlayerId', playerId)
+  }, [username, playerId])
+  
   // Initialize room data
   useEffect(() => {
     if (!roomId || !roomName || !passcode) {
       navigate('/')
       return
     }
-    
-    // Save playerId to localStorage for persistence
-    localStorage.setItem('ticTacToePlayerId', playerId)
     
     const fetchRoomData = async () => {
       try {
@@ -67,20 +76,37 @@ export default function Room() {
         setBoard(roomData.board)
         setIsXNext(roomData.currentPlayer === 'X')
         
+        // Check for win or draw conditions
         if (roomData.winner) {
           setWinner(roomData.winner)
           setGameOver(true)
-          setStatus(`Winner: ${roomData.winner}`)
+          
+          // Update status using player names if available
+          const winnerName = roomData.winner === 'X' 
+            ? players.X.username || 'Player X'
+            : players.O.username || 'Player O'
+          
+          setStatus(`Winner: ${winnerName}`)
         } else if (roomData.board.every(square => square !== null)) {
           setGameOver(true)
           setStatus('Game ended in a draw')
         }
         
-        // If player is already in the room, set their symbol
+        // Track player position in the game
         if (roomData.players.X === playerId) {
           setPlayerSymbol('X')
+          // Update local players state with our username
+          setPlayers(prev => ({
+            ...prev,
+            X: { ...prev.X, id: playerId, username: username }
+          }))
         } else if (roomData.players.O === playerId) {
           setPlayerSymbol('O')
+          // Update local players state with our username
+          setPlayers(prev => ({
+            ...prev,
+            O: { ...prev.O, id: playerId, username: username }
+          }))
         } else {
           // Player is not in the room, try to join
           try {
@@ -105,32 +131,33 @@ export default function Room() {
             const joinData = await joinResponse.json()
             setPlayerSymbol(joinData.symbol)
             
+            // Update our player info in the state
+            if (joinData.symbol === 'X') {
+              setPlayers(prev => ({
+                ...prev,
+                X: { ...prev.X, id: playerId, username: username }
+              }))
+            } else {
+              setPlayers(prev => ({
+                ...prev,
+                O: { ...prev.O, id: playerId, username: username }
+              }))
+            }
+            
           } catch (error) {
             console.error('Error joining room:', error)
             setError('Failed to join room')
           }
         }
         
-        // Setup players display
-        setPlayers({
-          creator: {
-            id: roomData.players.X || 'creator',
-            symbol: 'X',
-          },
-          opponent: roomData.players.O ? { 
-            id: roomData.players.O, 
-            symbol: 'O' 
-          } : null,
-        })
-        
+        // Set game status
         if (!roomData.players.O) {
           setStatus("Waiting for opponent...")
-        } else if (winner) {
-          setStatus(`Winner: ${winner}`)
-        } else if (roomData.board.every(square => square !== null)) {
-          setStatus('Game ended in a draw')
-        } else {
-          setStatus(`Next player: ${roomData.currentPlayer}`)
+        } else if (!roomData.winner && !roomData.board.every(square => square !== null)) {
+          const currentPlayerName = roomData.currentPlayer === 'X' 
+            ? players.X.username || 'Player X'
+            : players.O.username || 'Player O'
+          setStatus(`Next player: ${currentPlayerName}`)
         }
         
       } catch (error) {
@@ -145,7 +172,7 @@ export default function Room() {
     const intervalId = setInterval(fetchRoomData, 3000)
     
     return () => clearInterval(intervalId)
-  }, [roomId, roomName, passcode, playerId, navigate])
+  }, [roomId, roomName, passcode, playerId, username, navigate])
   
   // Handle socket events
   useEffect(() => {
@@ -154,26 +181,31 @@ export default function Room() {
     // When a player joins
     socket.on('user-joined', () => {
       console.log('User joined')
-      // Refresh the room data when someone joins
-      fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}?passcode=${passcode}`)
-        .then(res => res.json())
-        .then(roomData => {
-          setPlayers({
-            creator: {
-              id: roomData.players.X || 'creator',
-              symbol: 'X',
-            },
-            opponent: roomData.players.O ? { 
-              id: roomData.players.O, 
-              symbol: 'O' 
-            } : null,
-          })
-          
-          if (roomData.players.O) {
-            setStatus("Game in progress")
-          }
+      
+      // Broadcast our username and symbol to the room
+      if (playerSymbol) {
+        socket.emit('player-info', {
+          roomId,
+          playerId,
+          username,
+          symbol: playerSymbol
         })
-        .catch(err => console.error('Error fetching after user joined:', err))
+      }
+    })
+    
+    // Listen for other player's info
+    socket.on('player-info', (data) => {
+      if (data.playerId !== playerId) {
+        setPlayers(prev => {
+          const updated = {...prev}
+          if (data.symbol === 'X') {
+            updated.X = { ...updated.X, id: data.playerId, username: data.username }
+          } else if (data.symbol === 'O') {
+            updated.O = { ...updated.O, id: data.playerId, username: data.username }
+          }
+          return updated
+        })
+      }
     })
     
     // When a move is made
@@ -185,12 +217,27 @@ export default function Room() {
       if (winner) {
         setWinner(winner)
         setGameOver(true)
-        setStatus(`Winner: ${winner}`)
+        
+        // Update status with winner's name
+        const winnerName = winner === 'X' ? players.X.username || 'Player X' : players.O.username || 'Player O'
+        setStatus(`Winner: ${winnerName}`)
+        
+        // Update scores locally
+        setPlayers(prev => {
+          const updated = {...prev}
+          if (winner === 'X') {
+            updated.X = { ...updated.X, score: updated.X.score + 1 }
+          } else {
+            updated.O = { ...updated.O, score: updated.O.score + 1 }
+          }
+          return updated
+        })
       } else if (gameOver) {
         setGameOver(true)
         setStatus('Game ended in a draw')
       } else {
-        setStatus(`Next player: ${currentPlayer}`)
+        const currentPlayerName = currentPlayer === 'X' ? players.X.username || 'Player X' : players.O.username || 'Player O'
+        setStatus(`Next player: ${currentPlayerName}`)
       }
     })
     
@@ -201,7 +248,42 @@ export default function Room() {
       setIsXNext(currentPlayer === 'X')
       setWinner(null)
       setGameOver(false)
-      setStatus(`Next player: ${currentPlayer}`)
+      
+      // Switch player roles if flag is set
+      if (switchPlayersOnRestart) {
+        // Swap player symbols but keep scores
+        const oldSymbol = playerSymbol
+        const newSymbol = oldSymbol === 'X' ? 'O' : 'X'
+        setPlayerSymbol(newSymbol)
+        
+        // Swap player usernames and IDs but keep scores
+        setPlayers(prev => {
+          const xScore = prev.X.score
+          const oScore = prev.O.score
+          
+          return {
+            X: { 
+              id: prev.O.id,
+              username: prev.O.username,
+              score: xScore // Keep X position score
+            },
+            O: {
+              id: prev.X.id,
+              username: prev.X.username,
+              score: oScore // Keep O position score
+            }
+          }
+        })
+        
+        setSwitchPlayersOnRestart(false)
+      }
+      
+      // Update status with current player's name
+      const currentPlayerName = currentPlayer === 'X' 
+        ? (playerSymbol === 'X' ? username : players.O.username) || 'Player X'
+        : (playerSymbol === 'O' ? username : players.X.username) || 'Player O'
+      
+      setStatus(`Next player: ${currentPlayerName}`)
     })
     
     // When a player leaves
@@ -211,17 +293,6 @@ export default function Room() {
       fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}?passcode=${passcode}`)
         .then(res => res.json())
         .then(roomData => {
-          setPlayers({
-            creator: {
-              id: roomData.players.X || 'creator',
-              symbol: 'X',
-            },
-            opponent: roomData.players.O ? { 
-              id: roomData.players.O, 
-              symbol: 'O' 
-            } : null,
-          })
-          
           if (!roomData.players.O) {
             setStatus("Opponent left. Waiting for new opponent...")
           }
@@ -231,11 +302,12 @@ export default function Room() {
     
     return () => {
       socket.off('user-joined')
+      socket.off('player-info')
       socket.off('move-made')
       socket.off('game-restarted')
       socket.off('user-left')
     }
-  }, [socket, roomId, passcode])
+  }, [socket, roomId, passcode, playerId, username, playerSymbol, players, switchPlayersOnRestart])
   
   // Handle move
   const handleMove = async (i) => {
@@ -277,12 +349,27 @@ export default function Room() {
       if (data.winner) {
         setWinner(data.winner)
         setGameOver(true)
-        setStatus(`Winner: ${data.winner}`)
+        
+        // Update status with winner's name
+        const winnerName = data.winner === 'X' ? players.X.username || 'Player X' : players.O.username || 'Player O'
+        setStatus(`Winner: ${winnerName}`)
+        
+        // Update scores locally
+        setPlayers(prev => {
+          const updated = {...prev}
+          if (data.winner === 'X') {
+            updated.X = { ...updated.X, score: updated.X.score + 1 }
+          } else {
+            updated.O = { ...updated.O, score: updated.O.score + 1 }
+          }
+          return updated
+        })
       } else if (data.gameOver) {
         setGameOver(true)
         setStatus('Game ended in a draw')
       } else {
-        setStatus(`Next player: ${data.currentPlayer}`)
+        const currentPlayerName = data.currentPlayer === 'X' ? players.X.username || 'Player X' : players.O.username || 'Player O'
+        setStatus(`Next player: ${currentPlayerName}`)
       }
       
       // Emit move to other player
@@ -323,9 +410,12 @@ export default function Room() {
   
   // Handle restart game
   const handleRestart = async () => {
-    if (!gameOver && !winner && !board.every(square => square !== null)) {
+    if (!canRestart) {
       return
     }
+    
+    // Set flag to switch players on restart
+    setSwitchPlayersOnRestart(true)
     
     try {
       const response = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}/restart`, {
@@ -340,6 +430,7 @@ export default function Room() {
         const errorData = await response.json()
         console.error('Failed to restart game:', errorData)
         setError(errorData.error || 'Failed to restart game')
+        setSwitchPlayersOnRestart(false)
         return
       }
       
@@ -349,7 +440,6 @@ export default function Room() {
       setIsXNext(data.currentPlayer === 'X')
       setWinner(null)
       setGameOver(false)
-      setStatus(`Next player: ${data.currentPlayer}`)
       
       if (socket) {
         socket.emit('game-restart', {
@@ -361,10 +451,11 @@ export default function Room() {
     } catch (error) {
       console.error('Failed to restart game:', error)
       setError('Failed to connect to server')
+      setSwitchPlayersOnRestart(false)
     }
   }
 
-  // Determine if restart button should be enabled
+  // Determine if restart button should be enabled - only when game is over or there's a winner
   const canRestart = gameOver || winner || board.every(square => square !== null)
 
   return (
@@ -389,13 +480,28 @@ export default function Room() {
           </div>
         )}
         
+        {/* Scoreboard */}
+        <div className="mb-4 flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+          <div className="text-center">
+            <div className="font-medium truncate max-w-28">{players.X.username || 'Player X'}</div>
+            <div className="text-xl font-bold">{players.X.score}</div>
+          </div>
+          
+          <div className="text-xl font-bold">vs</div>
+          
+          <div className="text-center">
+            <div className="font-medium truncate max-w-28">{players.O.username || 'Player O'}</div>
+            <div className="text-xl font-bold">{players.O.score}</div>
+          </div>
+        </div>
+        
         <div className="mb-6">
           <p className="text-lg font-medium mb-2">{status}</p>
           <div className="flex space-x-4">
             <div className="bg-gray-100 px-3 py-2 rounded-md">
               You: {playerSymbol || '...'}
             </div>
-            {players.opponent ? (
+            {players.O?.id && players.X?.id ? (
               <div className="bg-gray-100 px-3 py-2 rounded-md">
                 Opponent: {playerSymbol === 'X' ? 'O' : 'X'}
               </div>

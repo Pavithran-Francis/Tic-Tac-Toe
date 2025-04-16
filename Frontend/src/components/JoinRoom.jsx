@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 export default function JoinRoom({ setError }) {
   const [roomName, setRoomName] = useState('')
   const [passcode, setPasscode] = useState('')
+  const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -19,6 +20,11 @@ export default function JoinRoom({ setError }) {
       setError('Please enter a 4-digit passcode')
       return
     }
+
+    if (!username.trim()) {
+      setError('Please enter your username')
+      return
+    }
     
     try {
       setLoading(true)
@@ -26,8 +32,9 @@ export default function JoinRoom({ setError }) {
       // Generate a unique player ID
       const playerId = 'player-' + Date.now().toString(16) + Math.random().toString(16).slice(2)
       
-      // Store player ID in localStorage for persistence
+      // Store player info in localStorage for persistence
       localStorage.setItem('ticTacToePlayerId', playerId)
+      localStorage.setItem('ticTacToeUsername', username)
       
       // First get room ID by name
       const searchResponse = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms?search=${encodeURIComponent(roomName)}`)
@@ -67,7 +74,7 @@ export default function JoinRoom({ setError }) {
         return
       }
       
-      navigate(`/room?id=${room.id}&name=${roomName}&passcode=${passcode}&isCreator=false&playerId=${playerId}`)
+      navigate(`/room?id=${room.id}&name=${roomName}&passcode=${passcode}&isCreator=false&playerId=${playerId}&username=${encodeURIComponent(username)}`)
     } catch (error) {
       setError('Failed to connect to server')
       console.error(error)
@@ -79,6 +86,18 @@ export default function JoinRoom({ setError }) {
     <div>
       <h2 className="text-xl font-semibold mb-4">Join a Room</h2>
       <form className="space-y-4">
+        <div>
+          <label className="block text-gray-700 mb-2">Your Username</label>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter your username"
+            disabled={loading}
+          />
+        </div>
+        
         <div>
           <label className="block text-gray-700 mb-2">Room Name</label>
           <input

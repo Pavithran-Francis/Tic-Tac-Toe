@@ -36,8 +36,16 @@ function createRoom(name, passcode) {
     board: Array(9).fill(null),
     currentPlayer: 'X',
     players: {
-      X: null,
-      O: null
+      X: {
+        id: null,
+        username: null,
+        score: 0
+      },
+      O: {
+        id: null,
+        username: null,
+        score: 0
+      }
     },
     winner: null,
     gameOver: false,
@@ -98,7 +106,7 @@ function getRoomById(id, passcode) {
   return roomData;
 }
 
-function joinRoom(id, passcode, playerId) {
+function joinRoom(id, passcode, playerId, username) {
   const room = rooms.find(room => room.id === id);
   
   if (!room) {
@@ -109,7 +117,7 @@ function joinRoom(id, passcode, playerId) {
     throw new CustomError('Invalid passcode', 401);
   }
   
-  if (room.playerCount >= 2) {
+  if (room.players.X.id && room.players.O.id) {
     throw new CustomError('Room is full', 409);
   }
   
@@ -117,16 +125,18 @@ function joinRoom(id, passcode, playerId) {
   room.lastActivity = Date.now();
   
   // Add player to room
-  if (!room.players.X) {
-    room.players.X = playerId;
+  if (!room.players.X.id) {
+    room.players.X.id = playerId;
+    room.players.X.username = username || 'Player X';
     room.playerCount++;
     return { 
       symbol: 'X',
       board: room.board,
       currentPlayer: room.currentPlayer
     };
-  } else if (!room.players.O) {
-    room.players.O = playerId;
+  } else if (!room.players.O.id) {
+    room.players.O.id = playerId;
+    room.players.O.username = username || 'Player O';
     room.playerCount++;
     return { 
       symbol: 'O',
@@ -136,6 +146,28 @@ function joinRoom(id, passcode, playerId) {
   }
   
   throw new CustomError('Room is full', 409);
+}
+
+function updatePlayerInfo(roomId, playerId, username, symbol) {
+  const room = rooms.find(room => room.id === roomId);
+  
+  if (!room) {
+    throw new CustomError('Room not found', 404);
+  }
+  
+  // Update the player's username
+  if (symbol === 'X' && room.players.X.id === playerId) {
+    room.players.X.username = username;
+  } else if (symbol === 'O' && room.players.O.id === playerId) {
+    room.players.O.username = username;
+  } else {
+    throw new CustomError('Player not found in room', 404);
+  }
+  
+  // Update last activity timestamp
+  room.lastActivity = Date.now();
+  
+  return true;
 }
 
 function makeMove(id, passcode, playerId, move) {
@@ -159,9 +191,9 @@ function makeMove(id, passcode, playerId, move) {
   
   // Determine which player is making the move
   let playerSymbol = null;
-  if (room.players.X === playerId) {
+  if (room.players.X.id === playerId) {
     playerSymbol = 'X';
-  } else if (room.players.O === playerId) {
+  } else if (room.players.O.id === playerId) {
     playerSymbol = 'O';
   } else {
     throw new CustomError('Player not in this room', 403);
@@ -185,6 +217,14 @@ function makeMove(id, passcode, playerId, move) {
   if (winner) {
     room.winner = winner;
     room.gameOver = true;
+    
+    // Increment winner's score
+    if (winner === 'X') {
+      room.players.X.score++;
+    } else {
+      room.players.O.score++;
+    }
+    
     return { 
       board: room.board,
       currentPlayer: room.currentPlayer,
@@ -237,7 +277,7 @@ function calculateWinner(board) {
   return null;
 }
 
-function restartGame(id, passcode) {
+function restartGame(id, passcode, swapPlayers = false) {
   const room = rooms.find(room => room.id === id);
   
   if (!room) {
@@ -256,6 +296,19 @@ function restartGame(id, passcode) {
   room.currentPlayer = 'X';
   room.winner = null;
   room.gameOver = false;
+  
+  // Swap players if requested
+  if (swapPlayers) {
+    // Swap player IDs but keep scores in their original positions
+    const tempId = room.players.X.id;
+    const tempUsername = room.players.X.username;
+    
+    room.players.X.id = room.players.O.id;
+    room.players.X.username = room.players.O.username;
+    
+    room.players.O.id = tempId;
+    room.players.O.username = tempUsername;
+  }
   
   return { 
     board: room.board,
@@ -280,11 +333,11 @@ function leaveRoom(id, passcode, playerId) {
   rooms[roomIndex].lastActivity = Date.now();
   
   // Remove player from room
-  if (rooms[roomIndex].players.X === playerId) {
-    rooms[roomIndex].players.X = null;
+  if (rooms[roomIndex].players.X.id === playerId) {
+    rooms[roomIndex].players.X.id = null;
     rooms[roomIndex].playerCount--;
-  } else if (rooms[roomIndex].players.O === playerId) {
-    rooms[roomIndex].players.O = null;
+  } else if (rooms[roomIndex].players.O.id === playerId) {
+    rooms[roomIndex].players.O.id = null;
     rooms[roomIndex].playerCount--;
   }
   
@@ -296,22 +349,8 @@ function leaveRoom(id, passcode, playerId) {
   return true;
 }
 
-// Add a function to delete a room
-function deleteRoom(id, passcode) {
-  const roomIndex = rooms.findIndex(room => room.id === id);
-  
-  if (roomIndex === -1) {
-    throw new CustomError('Room not found', 404);
-  }
-  
-  if (rooms[roomIndex].passcode !== passcode) {
-    throw new CustomError('Invalid passcode', 401);
-  }
-  
-  // Remove the room
-  rooms.splice(roomIndex, 1);
-  
-  return { success: true };
+function getRoomCount() {
+  return rooms.length;
 }
 
 module.exports = {
@@ -319,8 +358,9 @@ module.exports = {
   searchRooms,
   getRoomById,
   joinRoom,
+  updatePlayerInfo,
   makeMove,
   restartGame,
   leaveRoom,
-  deleteRoom
+  getRoomCount
 };

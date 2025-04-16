@@ -26,6 +26,7 @@ export default function useSocket(roomId) {
 
       newSocket.on('connect', () => {
         console.log('Connected to socket server', newSocket.id);
+        // Join the room
         newSocket.emit('join-room', roomId);
         setConnectionError(null);
       });

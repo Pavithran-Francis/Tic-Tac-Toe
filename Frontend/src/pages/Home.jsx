@@ -9,6 +9,7 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState([])
   const [allRooms, setAllRooms] = useState([])
   const [loading, setLoading] = useState(true)
+  const [username, setUsername] = useState(() => localStorage.getItem('ticTacToeUsername') || '')
   const navigate = useNavigate()
 
   // Fetch all rooms when component mounts
@@ -42,6 +43,12 @@ export default function Home() {
   }
 
   const handleJoinExistingRoom = (roomId, roomName) => {
+    // Check if username is set
+    if (!username.trim()) {
+      setError('Please enter your username in the form below before joining a room')
+      return
+    }
+    
     // Show passcode prompt
     const passcode = prompt(`Enter 4-digit passcode for room "${roomName}":`)
     
@@ -79,15 +86,22 @@ export default function Home() {
         return
       }
       
-      // Store player ID in localStorage for persistence
+      // Store player info in localStorage for persistence
       localStorage.setItem('ticTacToePlayerId', playerId)
+      localStorage.setItem('ticTacToeUsername', username)
       
       // Navigate to the room
-      navigate(`/room?id=${roomId}&name=${roomName}&passcode=${passcode}&isCreator=false&playerId=${playerId}`)
+      navigate(`/room?id=${roomId}&name=${roomName}&passcode=${passcode}&isCreator=false&playerId=${playerId}&username=${encodeURIComponent(username)}`)
     } catch (error) {
       setError('Failed to connect to server')
       console.error(error)
     }
+  }
+
+  // Handle username change for quick join
+  const handleUsernameChange = (e) => {
+    setUsername(e.target.value)
+    localStorage.setItem('ticTacToeUsername', e.target.value)
   }
 
   return (
@@ -116,6 +130,18 @@ export default function Home() {
               setSearchResults={setSearchResults} 
               setError={setError}
             />
+            
+            {/* Quick Join Username */}
+            <div className="mt-4 mb-4">
+              <label className="block text-gray-700 mb-2">Your Username for Quick Join</label>
+              <input
+                type="text"
+                value={username}
+                onChange={handleUsernameChange}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your username"
+              />
+            </div>
             
             {/* Display all active rooms */}
             <div className="mt-4">

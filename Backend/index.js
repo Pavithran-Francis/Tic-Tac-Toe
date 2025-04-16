@@ -14,7 +14,7 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json()); // 👈 Important to parse incoming JSON
+app.use(express.json()); // Parse incoming JSON
 
 // Socket.IO with its own CORS
 const io = new Server(server, {
@@ -31,20 +31,37 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
+  // When a user joins a room
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
     socket.to(roomId).emit('user-joined', { id: socket.id });
     console.log(`${socket.id} joined room: ${roomId}`);
   });
 
+  // New event for player information sharing
+  socket.on('player-info', ({ roomId, playerId, username, symbol }) => {
+    console.log(`Player info shared in room ${roomId}: ${username} (${symbol})`);
+    socket.to(roomId).emit('player-info', { playerId, username, symbol });
+    
+    // Update room data in our manager
+    try {
+      roomManager.updatePlayerInfo(roomId, playerId, username, symbol);
+    } catch (error) {
+      console.log('Error updating player info:', error.message);
+    }
+  });
+
+  // When a move is made
   socket.on('make-move', ({ roomId, board, currentPlayer, winner, gameOver }) => {
     socket.to(roomId).emit('move-made', { board, currentPlayer, winner, gameOver });
   });
 
+  // When game is restarted
   socket.on('game-restart', ({ roomId, board, currentPlayer }) => {
     socket.to(roomId).emit('game-restarted', { board, currentPlayer });
   });
 
+  // When a player leaves
   socket.on('leave-room', (roomId) => {
     socket.leave(roomId);
     socket.to(roomId).emit('user-left', { id: socket.id });
@@ -101,10 +118,10 @@ app.get('/api/rooms/:id', (req, res) => {
 
 app.post('/api/rooms/:id', (req, res) => {
   const { id } = req.params;
-  const { passcode, playerId } = req.body;
+  const { passcode, playerId, username } = req.body;
 
   try {
-    const result = roomManager.joinRoom(id, passcode, playerId);
+    const result = roomManager.joinRoom(id, passcode, playerId, username);
     res.status(200).json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message });
@@ -125,10 +142,10 @@ app.put('/api/rooms/:id', (req, res) => {
 
 app.post('/api/rooms/:id/restart', (req, res) => {
   const { id } = req.params;
-  const { passcode } = req.body;
+  const { passcode, swapPlayers } = req.body;
 
   try {
-    const result = roomManager.restartGame(id, passcode);
+    const result = roomManager.restartGame(id, passcode, swapPlayers);
     res.status(200).json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message });
@@ -147,22 +164,9 @@ app.delete('/api/rooms/:id', (req, res) => {
   }
 });
 
-// Endpoint to delete a room completely
-app.delete('/api/rooms/:id/delete', (req, res) => {
-  const { id } = req.params;
-  const { passcode } = req.body;
-
-  try {
-    roomManager.deleteRoom(id, passcode);
-    res.status(200).json({ success: true });
-  } catch (error) {
-    res.status(error.statusCode || 500).json({ error: error.message });
-  }
-});
-
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', roomCount: roomManager.getRoomCount() });
+  res.status(200).json({ status: 'ok' });
 });
 
 // Start server
