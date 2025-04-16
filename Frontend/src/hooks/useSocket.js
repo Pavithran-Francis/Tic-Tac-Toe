@@ -8,8 +8,10 @@ export default function useSocket(roomId) {
     if (!roomId) return
     
     // Connect to the socket server
-    const newSocket = io('https://tic-tac-toe-backend-pavidev.vercel.app/')
-    
+    const newSocket = io(import.meta.env.PROD 
+      ? 'https://tic-tac-toe-backend-pavidev.vercel.app/' 
+      : 'http://localhost:3001')
+
     newSocket.on('connect', () => {
       console.log('Connected to socket server')
       newSocket.emit('join-room', roomId)
