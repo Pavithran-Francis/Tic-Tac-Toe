@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 export default function JoinRoom({ setError }) {
   const [roomName, setRoomName] = useState('')
   const [passcode, setPasscode] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
   const handleJoinRoom = async (e) => {
@@ -20,19 +21,29 @@ export default function JoinRoom({ setError }) {
     }
     
     try {
+      setLoading(true)
+      
+      // Generate a unique player ID
+      const playerId = 'player-' + Date.now().toString(16) + Math.random().toString(16).slice(2)
+      
+      // Store player ID in localStorage for persistence
+      localStorage.setItem('ticTacToePlayerId', playerId)
+      
       // First get room ID by name
-      const searchResponse = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms?search=${roomName}`)
-      const rooms = await searchResponse.json()
+      const searchResponse = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms?search=${encodeURIComponent(roomName)}`)
       
       if (!searchResponse.ok) {
         setError('Failed to search for room')
+        setLoading(false)
         return
       }
       
-      const room = rooms.find(r => r.name === roomName)
+      const rooms = await searchResponse.json()
+      const room = rooms.find(r => r.name.toLowerCase() === roomName.toLowerCase())
       
       if (!room) {
         setError('Room not found')
+        setLoading(false)
         return
       }
       
@@ -44,7 +55,7 @@ export default function JoinRoom({ setError }) {
         },
         body: JSON.stringify({ 
           passcode,
-          playerId: 'player-' + Math.random().toString(36).substr(2, 9)
+          playerId
         }),
       })
       
@@ -52,13 +63,15 @@ export default function JoinRoom({ setError }) {
       
       if (!joinResponse.ok) {
         setError(joinData.error || 'Failed to join room')
+        setLoading(false)
         return
       }
       
-      navigate(`/room?id=${room.id}&name=${roomName}&passcode=${passcode}&isCreator=false`)
+      navigate(`/room?id=${room.id}&name=${roomName}&passcode=${passcode}&isCreator=false&playerId=${playerId}`)
     } catch (error) {
       setError('Failed to connect to server')
       console.error(error)
+      setLoading(false)
     }
   }
 
@@ -74,6 +87,7 @@ export default function JoinRoom({ setError }) {
             onChange={(e) => setRoomName(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter room name"
+            disabled={loading}
           />
         </div>
         
@@ -86,14 +100,16 @@ export default function JoinRoom({ setError }) {
             maxLength={4}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter 4-digit passcode"
+            disabled={loading}
           />
         </div>
         
         <button
           onClick={handleJoinRoom}
-          className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg"
+          className={`w-full ${loading ? 'bg-green-400' : 'bg-green-500 hover:bg-green-600'} text-white py-2 px-4 rounded-lg`}
+          disabled={loading}
         >
-          Join Room
+          {loading ? 'Joining...' : 'Join Room'}
         </button>
       </form>
     </div>

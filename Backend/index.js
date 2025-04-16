@@ -22,7 +22,9 @@ const io = new Server(server, {
     origin: ["https://tic-tac-toe-game-pavidev.vercel.app", "http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
-  }
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // Socket.IO logic
@@ -35,8 +37,8 @@ io.on('connection', (socket) => {
     console.log(`${socket.id} joined room: ${roomId}`);
   });
 
-  socket.on('make-move', ({ roomId, board, currentPlayer }) => {
-    socket.to(roomId).emit('move-made', { board, currentPlayer });
+  socket.on('make-move', ({ roomId, board, currentPlayer, winner, gameOver }) => {
+    socket.to(roomId).emit('move-made', { board, currentPlayer, winner, gameOver });
   });
 
   socket.on('game-restart', ({ roomId, board, currentPlayer }) => {
@@ -70,7 +72,7 @@ app.post('/api/rooms', (req, res) => {
     const room = roomManager.createRoom(name, passcode);
     res.status(201).json({ id: room.id, name: room.name });
   } catch (error) {
-    res.status(409).json({ error: error.message });
+    res.status(error.statusCode || 409).json({ error: error.message });
   }
 });
 
@@ -143,6 +145,24 @@ app.delete('/api/rooms/:id', (req, res) => {
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message });
   }
+});
+
+// Endpoint to delete a room completely
+app.delete('/api/rooms/:id/delete', (req, res) => {
+  const { id } = req.params;
+  const { passcode } = req.body;
+
+  try {
+    roomManager.deleteRoom(id, passcode);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', roomCount: roomManager.getRoomCount() });
 });
 
 // Start server

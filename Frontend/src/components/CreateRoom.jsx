@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 export default function CreateRoom({ setError }) {
   const [roomName, setRoomName] = useState('')
   const [passcode, setPasscode] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
   const handleCreateRoom = async (e) => {
@@ -20,6 +21,14 @@ export default function CreateRoom({ setError }) {
     }
     
     try {
+      setLoading(true)
+      
+      // Generate a unique player ID
+      const playerId = 'player-' + Date.now().toString(16) + Math.random().toString(16).slice(2)
+      
+      // Store player ID in localStorage for persistence
+      localStorage.setItem('ticTacToePlayerId', playerId)
+      
       const response = await fetch('https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms', {
         method: 'POST',
         headers: {
@@ -32,13 +41,34 @@ export default function CreateRoom({ setError }) {
       
       if (!response.ok) {
         setError(data.error || 'Failed to create room')
+        setLoading(false)
         return
       }
       
-      navigate(`/room?id=${data.id}&name=${roomName}&passcode=${passcode}&isCreator=true`)
+      // After creating a room, join it with the generated player ID
+      const joinResponse = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${data.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          passcode,
+          playerId
+        }),
+      })
+      
+      if (!joinResponse.ok) {
+        const joinData = await joinResponse.json()
+        setError(joinData.error || 'Failed to join room')
+        setLoading(false)
+        return
+      }
+      
+      navigate(`/room?id=${data.id}&name=${roomName}&passcode=${passcode}&isCreator=true&playerId=${playerId}`)
     } catch (error) {
       setError('Failed to connect to server')
       console.error(error)
+      setLoading(false)
     }
   }
 
@@ -54,6 +84,7 @@ export default function CreateRoom({ setError }) {
             onChange={(e) => setRoomName(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter room name"
+            disabled={loading}
           />
         </div>
         
@@ -66,14 +97,16 @@ export default function CreateRoom({ setError }) {
             maxLength={4}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter 4-digit passcode"
+            disabled={loading}
           />
         </div>
         
         <button
           onClick={handleCreateRoom}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg"
+          className={`w-full ${loading ? 'bg-blue-400' : 'bg-blue-500 hover:bg-blue-600'} text-white py-2 px-4 rounded-lg`}
+          disabled={loading}
         >
-          Create Room
+          {loading ? 'Creating...' : 'Create Room'}
         </button>
       </form>
     </div>
