@@ -9,6 +9,8 @@ export default function useSocket(roomId) {
     if (!roomId) return
     
     let newSocket = null;
+    let hasJoined = false; // Track if we've joined to prevent duplicates
+    
     const connectSocket = () => {
       // Clean up any existing socket first
       if (newSocket) {
@@ -21,13 +23,18 @@ export default function useSocket(roomId) {
         : 'http://localhost:3001', {
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
-          timeout: 10000
+          timeout: 10000,
+          transports: ['websocket'], // Force websocket to avoid polling issues
+          query: { roomId } // Pass roomId as a query parameter
         });
 
       newSocket.on('connect', () => {
         console.log('Connected to socket server', newSocket.id);
-        // Join the room
-        newSocket.emit('join-room', roomId);
+        // Only join the room if we haven't already joined
+        if (!hasJoined) {
+          newSocket.emit('join-room', roomId);
+          hasJoined = true;
+        }
         setConnectionError(null);
       });
       
@@ -46,7 +53,7 @@ export default function useSocket(roomId) {
       
       newSocket.on('reconnect', (attemptNumber) => {
         console.log('Socket reconnected after', attemptNumber, 'attempts');
-        newSocket.emit('join-room', roomId);
+        // Don't emit join-room here to avoid duplicate joining
         setConnectionError(null);
       });
       
@@ -66,6 +73,7 @@ export default function useSocket(roomId) {
         console.log('Cleaning up socket');
         newSocket.emit('leave-room', roomId);
         newSocket.disconnect();
+        hasJoined = false;
       }
     };
   }, [roomId]);

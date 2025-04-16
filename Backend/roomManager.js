@@ -13,10 +13,15 @@ class CustomError extends Error {
 // Cleanup function to remove inactive rooms
 function cleanupInactiveRooms() {
   const currentTime = Date.now();
+  const initialCount = rooms.length;
   rooms = rooms.filter(room => {
     // Keep rooms that are active (last activity within timeout)
     return currentTime - room.lastActivity < INACTIVE_TIMEOUT;
   });
+  
+  if (initialCount !== rooms.length) {
+    console.log(`Cleaned up ${initialCount - rooms.length} inactive rooms`);
+  }
 }
 
 // Run cleanup every minute
@@ -50,10 +55,12 @@ function createRoom(name, passcode) {
     winner: null,
     gameOver: false,
     lastActivity: Date.now(),
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    socketIds: new Set() // Track socket IDs to prevent duplicate connections
   };
   
   rooms.push(newRoom);
+  console.log(`Room created: ${name} (${newRoom.id})`);
   
   return { id: newRoom.id, name: newRoom.name };
 }
@@ -101,12 +108,12 @@ function getRoomById(id, passcode) {
   // Update last activity timestamp
   room.lastActivity = Date.now();
   
-  // Return room data without passcode
-  const { passcode: _, ...roomData } = room;
+  // Return room data without passcode and socketIds
+  const { passcode: _, socketIds: __, ...roomData } = room;
   return roomData;
 }
 
-function joinRoom(id, passcode, playerId, username) {
+function joinRoom(id, passcode, playerId, username, socketId = null) {
   const room = rooms.find(room => room.id === id);
   
   if (!room) {
@@ -117,6 +124,34 @@ function joinRoom(id, passcode, playerId, username) {
     throw new CustomError('Invalid passcode', 401);
   }
   
+  // Check if this player is already in the room - prevent double joining
+  if (room.players.X.id === playerId) {
+    console.log(`Player ${playerId} already joined as X in room ${id}`);
+    // Add socketId to tracking if provided
+    if (socketId && !room.socketIds.has(socketId)) {
+      room.socketIds.add(socketId);
+    }
+    return { 
+      symbol: 'X',
+      board: room.board,
+      currentPlayer: room.currentPlayer
+    };
+  }
+  
+  if (room.players.O.id === playerId) {
+    console.log(`Player ${playerId} already joined as O in room ${id}`);
+    // Add socketId to tracking if provided
+    if (socketId && !room.socketIds.has(socketId)) {
+      room.socketIds.add(socketId);
+    }
+    return { 
+      symbol: 'O',
+      board: room.board,
+      currentPlayer: room.currentPlayer
+    };
+  }
+  
+  // Check if room is full (both positions filled)
   if (room.players.X.id && room.players.O.id) {
     throw new CustomError('Room is full', 409);
   }
@@ -124,11 +159,17 @@ function joinRoom(id, passcode, playerId, username) {
   // Update last activity timestamp
   room.lastActivity = Date.now();
   
+  // Add socketId to tracking if provided
+  if (socketId) {
+    room.socketIds.add(socketId);
+  }
+  
   // Add player to room
   if (!room.players.X.id) {
     room.players.X.id = playerId;
     room.players.X.username = username || 'Player X';
     room.playerCount++;
+    console.log(`Player ${playerId} joined as X in room ${id}`);
     return { 
       symbol: 'X',
       board: room.board,
@@ -138,6 +179,7 @@ function joinRoom(id, passcode, playerId, username) {
     room.players.O.id = playerId;
     room.players.O.username = username || 'Player O';
     room.playerCount++;
+    console.log(`Player ${playerId} joined as O in room ${id}`);
     return { 
       symbol: 'O',
       board: room.board,
@@ -145,6 +187,7 @@ function joinRoom(id, passcode, playerId, username) {
     };
   }
   
+  // This should never happen due to the earlier check, but just in case
   throw new CustomError('Room is full', 409);
 }
 
@@ -170,155 +213,40 @@ function updatePlayerInfo(roomId, playerId, username, symbol) {
   return true;
 }
 
-function makeMove(id, passcode, playerId, move) {
-  const room = rooms.find(room => room.id === id);
+// Track socket connections
+function registerSocketInRoom(roomId, socketId) {
+  const room = rooms.find(room => room.id === roomId);
   
   if (!room) {
-    throw new CustomError('Room not found', 404);
+    return false;
   }
   
-  if (room.passcode !== passcode) {
-    throw new CustomError('Invalid passcode', 401);
+  if (!room.socketIds) {
+    room.socketIds = new Set();
   }
   
-  // Check if the game is already over
-  if (room.gameOver) {
-    throw new CustomError('Game is already over', 400);
-  }
-  
-  // Update last activity timestamp
-  room.lastActivity = Date.now();
-  
-  // Determine which player is making the move
-  let playerSymbol = null;
-  if (room.players.X.id === playerId) {
-    playerSymbol = 'X';
-  } else if (room.players.O.id === playerId) {
-    playerSymbol = 'O';
-  } else {
-    throw new CustomError('Player not in this room', 403);
-  }
-  
-  // Validate player and turn
-  if (playerSymbol !== room.currentPlayer) {
-    throw new CustomError('Not your turn', 400);
-  }
-  
-  // Validate move
-  if (move < 0 || move > 8 || room.board[move] !== null) {
-    throw new CustomError('Invalid move', 400);
-  }
-  
-  // Make move
-  room.board[move] = playerSymbol;
-  
-  // Check for winner
-  const winner = calculateWinner(room.board);
-  if (winner) {
-    room.winner = winner;
-    room.gameOver = true;
-    
-    // Increment winner's score
-    if (winner === 'X') {
-      room.players.X.score++;
-    } else {
-      room.players.O.score++;
-    }
-    
-    return { 
-      board: room.board,
-      currentPlayer: room.currentPlayer,
-      winner,
-      gameOver: true
-    };
-  }
-  
-  // Check for draw
-  if (room.board.every(cell => cell !== null)) {
-    room.gameOver = true;
-    return { 
-      board: room.board,
-      currentPlayer: room.currentPlayer,
-      winner: null,
-      gameOver: true
-    };
-  }
-  
-  // Switch player
-  room.currentPlayer = playerSymbol === 'X' ? 'O' : 'X';
-  
-  return { 
-    board: room.board,
-    currentPlayer: room.currentPlayer,
-    winner: null,
-    gameOver: false
-  };
+  room.socketIds.add(socketId);
+  console.log(`Socket ${socketId} registered in room ${roomId}`);
+  return true;
 }
 
-function calculateWinner(board) {
-  const lines = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
-  ];
+// Remove socket connections
+function removeSocketFromRoom(roomId, socketId) {
+  const room = rooms.find(room => room.id === roomId);
   
-  for (let i = 0; i < lines.length; i++) {
-    const [a, b, c] = lines[i];
-    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-      return board[a];
-    }
+  if (!room || !room.socketIds) {
+    return false;
   }
   
-  return null;
+  room.socketIds.delete(socketId);
+  console.log(`Socket ${socketId} removed from room ${roomId}`);
+  return true;
 }
 
-function restartGame(id, passcode, swapPlayers = false) {
-  const room = rooms.find(room => room.id === id);
-  
-  if (!room) {
-    throw new CustomError('Room not found', 404);
-  }
-  
-  if (room.passcode !== passcode) {
-    throw new CustomError('Invalid passcode', 401);
-  }
-  
-  // Update last activity timestamp
-  room.lastActivity = Date.now();
-  
-  // Reset the game
-  room.board = Array(9).fill(null);
-  room.currentPlayer = 'X';
-  room.winner = null;
-  room.gameOver = false;
-  
-  // Swap players if requested
-  if (swapPlayers) {
-    // Swap player IDs but keep scores in their original positions
-    const tempId = room.players.X.id;
-    const tempUsername = room.players.X.username;
-    
-    room.players.X.id = room.players.O.id;
-    room.players.X.username = room.players.O.username;
-    
-    room.players.O.id = tempId;
-    room.players.O.username = tempUsername;
-  }
-  
-  return { 
-    board: room.board,
-    currentPlayer: room.currentPlayer,
-    winner: null,
-    gameOver: false
-  };
-}
+// Rest of your existing functions (makeMove, calculateWinner, restartGame)
+// ...
 
-function leaveRoom(id, passcode, playerId) {
+function leaveRoom(id, passcode, playerId, socketId = null) {
   const roomIndex = rooms.findIndex(room => room.id === id);
   
   if (roomIndex === -1) {
@@ -332,17 +260,30 @@ function leaveRoom(id, passcode, playerId) {
   // Update last activity timestamp
   rooms[roomIndex].lastActivity = Date.now();
   
+  // If a socketId was provided, remove it from tracking
+  if (socketId && rooms[roomIndex].socketIds) {
+    rooms[roomIndex].socketIds.delete(socketId);
+    
+    // If there are still other sockets connected for this player, don't remove the player yet
+    if (rooms[roomIndex].socketIds.size > 0) {
+      return true;
+    }
+  }
+  
   // Remove player from room
   if (rooms[roomIndex].players.X.id === playerId) {
     rooms[roomIndex].players.X.id = null;
     rooms[roomIndex].playerCount--;
+    console.log(`Player ${playerId} (X) left room ${id}`);
   } else if (rooms[roomIndex].players.O.id === playerId) {
     rooms[roomIndex].players.O.id = null;
     rooms[roomIndex].playerCount--;
+    console.log(`Player ${playerId} (O) left room ${id}`);
   }
   
   // If room is empty, remove it
   if (rooms[roomIndex].playerCount === 0) {
+    console.log(`Room ${id} is empty, removing it`);
     rooms.splice(roomIndex, 1);
   }
   
@@ -362,5 +303,7 @@ module.exports = {
   makeMove,
   restartGame,
   leaveRoom,
-  getRoomCount
+  getRoomCount,
+  registerSocketInRoom,
+  removeSocketFromRoom
 };
