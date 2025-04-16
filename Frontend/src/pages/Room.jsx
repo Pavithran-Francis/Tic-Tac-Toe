@@ -32,8 +32,15 @@ export default function Room() {
   const [gameOver, setGameOver] = useState(false)
   const [error, setError] = useState(null)
   
-  // Connect to socket
-  const socket = useSocket(roomId)
+  // Connect to socket - NOTE: Destructure to get socket and connectionError
+  const { socket, connectionError } = useSocket(roomId)
+  
+  // Set connection error if any
+  useEffect(() => {
+    if (connectionError) {
+      setError(connectionError)
+    }
+  }, [connectionError])
   
   // Initialize room data
   useEffect(() => {
