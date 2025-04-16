@@ -20,7 +20,7 @@ export default function CreateRoom({ setError }) {
     }
     
     try {
-      const response = await fetch('https://tic-tac-toe-backend-pavidev.vercel.app/api/rooms', {
+      const response = await fetch('https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

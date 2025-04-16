@@ -9,7 +9,7 @@ export default function useSocket(roomId) {
     
     // Connect to the socket server
     const newSocket = io(import.meta.env.PROD 
-      ? 'https://tic-tac-toe-backend-pavidev.vercel.app/' 
+      ? 'https://tic-tac-toe-backend-pavidev.up.railway.app/' 
       : 'http://localhost:3001')
 
     newSocket.on('connect', () => {

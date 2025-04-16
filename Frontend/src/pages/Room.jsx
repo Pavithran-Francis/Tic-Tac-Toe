@@ -35,7 +35,7 @@ export default function Room() {
     
     const fetchRoomData = async () => {
       try {
-        const response = await fetch(`https://tic-tac-toe-backend-pavidev.vercel.app/api/rooms/${roomId}?passcode=${passcode}`)
+        const response = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}?passcode=${passcode}`)
         
         if (!response.ok) {
           navigate('/')
@@ -169,7 +169,7 @@ export default function Room() {
     if (!canMove) return
     
     try {
-      const response = await fetch(`https://tic-tac-toe-backend-pavidev.vercel.app/api/rooms/${roomId}`, {
+      const response = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -204,7 +204,7 @@ export default function Room() {
   // Handle exit room
   const handleExit = async () => {
     try {
-      await fetch(`https://tic-tac-toe-backend-pavidev.vercel.app/api/rooms/${roomId}`, {
+      await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -224,7 +224,7 @@ export default function Room() {
   // Handle restart game
   const handleRestart = async () => {
     try {
-      const response = await fetch(`https://tic-tac-toe-backend-pavidev.vercel.app/api/rooms/${roomId}/restart`, {
+      const response = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}/restart`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

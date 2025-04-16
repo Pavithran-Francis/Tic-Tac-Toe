@@ -8,11 +8,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://tic-tac-toe-backend-pavidev.vercel.app/',
+        target: 'https://tic-tac-toe-backend-pavidev.up.railway.app/',
         changeOrigin: true
       },
       '/socket.io': {
-        target: 'https://tic-tac-toe-backend-pavidev.vercel.app/',
+        target: 'https://tic-tac-toe-backend-pavidev.up.railway.app/',
         ws: true
       }
     }
