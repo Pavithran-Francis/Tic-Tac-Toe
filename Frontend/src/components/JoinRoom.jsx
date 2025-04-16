@@ -21,7 +21,7 @@ export default function JoinRoom({ setError }) {
     
     try {
       // First get room ID by name
-      const searchResponse = await fetch(`http://localhost:3001/api/rooms?search=${roomName}`)
+      const searchResponse = await fetch(`https://tic-tac-toe-backend-pavidev.vercel.app/api/rooms?search=${roomName}`)
       const rooms = await searchResponse.json()
       
       if (!searchResponse.ok) {
@@ -37,7 +37,7 @@ export default function JoinRoom({ setError }) {
       }
       
       // Then try to join with passcode
-      const joinResponse = await fetch(`http://localhost:3001/api/rooms/${room.id}`, {
+      const joinResponse = await fetch(`https://tic-tac-toe-backend-pavidev.vercel.app/api/rooms/${room.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -7,7 +7,7 @@ export default function RoomSearch({ setSearchResults, setError }) {
     e.preventDefault()
     
     try {
-      const response = await fetch(`http://localhost:3001/api/rooms?search=${searchTerm}`)
+      const response = await fetch(`https://tic-tac-toe-backend-pavidev.vercel.app/api/rooms?search=${searchTerm}`)
       const data = await response.json()
       
       if (!response.ok) {
