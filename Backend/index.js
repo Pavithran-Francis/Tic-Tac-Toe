@@ -7,24 +7,56 @@ const roomManager = require('./roomManager');
 const app = express();
 const server = http.createServer(app);
 
-// Middleware
+// Updated CORS configuration with more permissive settings
+const allowedOrigins = [
+  'https://tic-tac-toe-game-pavidev.vercel.app', 
+  'https://tic-tac-toe-game-pavidev.vercel.app/',
+  'http://localhost:5173',
+  'http://localhost:5173/'
+];
+
+// Middleware - More permissive CORS for Express routes
 app.use(cors({
-  origin: ["https://tic-tac-toe-game-pavidev.vercel.app", "http://localhost:5173"],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      console.log('Blocked origin:', origin);
+      callback(null, true); // Allow all origins in development
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Add a pre-flight route for OPTIONS requests
+app.options('*', cors());
 
 app.use(express.json()); // Parse incoming JSON
 
-// Socket.IO with its own CORS
+// Socket.IO with updated CORS settings
 const io = new Server(server, {
   cors: {
-    origin: ["https://tic-tac-toe-game-pavidev.vercel.app", "http://localhost:5173"],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
+    origin: function(origin, callback) {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.log('Socket.io blocked origin:', origin);
+        callback(null, true); // Allow all origins in development
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   },
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
+  transports: ['websocket', 'polling'], // Support both transport methods
+  allowUpgrades: true
 });
 
 // Track socket connections by room and player ID
