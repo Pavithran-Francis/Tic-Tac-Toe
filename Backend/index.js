@@ -8,13 +8,15 @@ const app = express()
 const server = http.createServer(app)
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173', // Vite default port
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
+    origin: ["https://tic-tac-toe-game-pavidev.vercel.app/", "http://localhost:5173"],
+    methods: ["GET", "POST", "PUT", "DELETE"]
   }
-})
+});
 
 // Middleware
-app.use(cors())
+app.use(cors({
+  origin: ["https://tic-tac-toe-game-pavidev.vercel.app/", "http://localhost:5173"]
+}));
 app.use(express.json())
 
 // Socket.io
