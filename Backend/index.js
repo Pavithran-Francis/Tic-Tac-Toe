@@ -76,6 +76,25 @@ app.get('/api/rooms/:roomId', (req, res) => {
   }
 });
 
+// Make a move in a room
+app.put('/api/rooms/:roomId', (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { passcode, playerId, move } = req.body;
+    if (
+      typeof move !== 'number' ||
+      move < 0 ||
+      move > 8
+    ) {
+      return res.status(400).json({ error: 'Invalid move index' });
+    }
+    const result = roomManager.makeMove(roomId, passcode, playerId, move);
+    res.json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
+
 // Socket.IO with updated CORS settings
 const io = new Server(server, {
   cors: {
