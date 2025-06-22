@@ -243,8 +243,81 @@ function removeSocketFromRoom(roomId, socketId) {
   return true;
 }
 
-// Rest of your existing functions (makeMove, calculateWinner, restartGame)
-// ...
+function calculateWinner(board) {
+  const lines = [
+    [0,1,2],[3,4,5],[6,7,8], // rows
+    [0,3,6],[1,4,7],[2,5,8], // cols
+    [0,4,8],[2,4,6]          // diags
+  ];
+  for (const [a, b, c] of lines) {
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      return board[a];
+    }
+  }
+  return null;
+}
+
+function makeMove(roomId, passcode, playerId, moveIndex) {
+  const room = rooms.find(r => r.id === roomId);
+  if (!room) throw new CustomError('Room not found', 404);
+  if (room.passcode !== passcode) throw new CustomError('Invalid passcode', 401);
+  if (room.gameOver) throw new CustomError('Game is over', 409);
+
+  // Determine player symbol
+  let symbol = null;
+  if (room.players.X.id === playerId) symbol = 'X';
+  else if (room.players.O.id === playerId) symbol = 'O';
+  else throw new CustomError('Player not in room', 403);
+
+  // Check turn
+  if (room.currentPlayer !== symbol) throw new CustomError('Not your turn', 403);
+
+  // Check move validity
+  if (moveIndex < 0 || moveIndex > 8 || room.board[moveIndex]) {
+    throw new CustomError('Invalid move', 400);
+  }
+
+  // Make move
+  room.board[moveIndex] = symbol;
+  room.lastActivity = Date.now();
+
+  // Check for winner
+  const winner = calculateWinner(room.board);
+  if (winner) {
+    room.winner = winner;
+    room.gameOver = true;
+    room.players[winner].score += 1;
+  } else if (room.board.every(cell => cell)) {
+    room.gameOver = true; // Draw
+  } else {
+    // Switch turn
+    room.currentPlayer = room.currentPlayer === 'X' ? 'O' : 'X';
+  }
+
+  return {
+    board: room.board,
+    currentPlayer: room.currentPlayer,
+    winner: room.winner,
+    gameOver: room.gameOver
+  };
+}
+
+function restartGame(roomId, passcode) {
+  const room = rooms.find(r => r.id === roomId);
+  if (!room) throw new CustomError('Room not found', 404);
+  if (room.passcode !== passcode) throw new CustomError('Invalid passcode', 401);
+
+  room.board = Array(9).fill(null);
+  room.currentPlayer = 'X';
+  room.winner = null;
+  room.gameOver = false;
+  room.lastActivity = Date.now();
+
+  return {
+    board: room.board,
+    currentPlayer: room.currentPlayer
+  };
+}
 
 function leaveRoom(id, passcode, playerId, socketId = null) {
   const roomIndex = rooms.findIndex(room => room.id === id);
