@@ -458,6 +458,18 @@ export default function Room() {
   // Determine if restart button should be enabled - only when game is over or there's a winner
   const canRestart = gameOver || winner || board.every(square => square !== null)
 
+  useEffect(() => {
+    const handleUnload = () => {
+      fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode, playerId }),
+      });
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [roomId, passcode, playerId]);
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">

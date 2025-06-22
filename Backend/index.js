@@ -250,7 +250,11 @@ useEffect(() => {
     fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ passcode, playerId }),
+      body: JSON.stringify({ 
+        passcode,
+        playerId,
+        username // <-- add this line everywhere you join a room
+      }),
     });
   };
   window.addEventListener('beforeunload', handleUnload);
