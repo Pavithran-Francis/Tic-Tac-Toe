@@ -18,7 +18,7 @@ function cleanupInactiveRooms() {
     // Delete room if no users for more than 5 minutes
     const noUsers = room.playerCount === 0;
     const inactive = currentTime - room.lastActivity > INACTIVE_TIMEOUT;
-    return !(noUsers && inactive);
+    return room.playerCount > 0 || !(noUsers && inactive);
   });
 
   if (initialCount !== rooms.length) {
@@ -323,12 +323,12 @@ function restartGame(roomId, passcode) {
 
 function leaveRoom(id, passcode, playerId, socketId = null) {
   const roomIndex = rooms.findIndex(room => room.id === id);
-  
   if (roomIndex === -1) {
     throw new CustomError('Room not found', 404);
   }
-  
-  if (rooms[roomIndex].passcode !== passcode) {
+
+  // Allow passcode to be null for socket disconnects
+  if (passcode && rooms[roomIndex].passcode !== passcode) {
     throw new CustomError('Invalid passcode', 401);
   }
   
@@ -355,13 +355,13 @@ function leaveRoom(id, passcode, playerId, socketId = null) {
     rooms[roomIndex].playerCount--;
     console.log(`Player ${playerId} (O) left room ${id}`);
   }
-  
-  // If room is empty, remove it
+
+  // Remove the room if empty
   if (rooms[roomIndex].playerCount === 0) {
     console.log(`Room ${id} is empty, removing it`);
     rooms.splice(roomIndex, 1);
   }
-  
+
   return true;
 }
 
