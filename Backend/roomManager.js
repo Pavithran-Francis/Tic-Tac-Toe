@@ -15,10 +15,12 @@ function cleanupInactiveRooms() {
   const currentTime = Date.now();
   const initialCount = rooms.length;
   rooms = rooms.filter(room => {
-    // Keep rooms that are active (last activity within timeout)
-    return currentTime - room.lastActivity < INACTIVE_TIMEOUT;
+    // Delete room if no users for more than 5 minutes
+    const noUsers = room.playerCount === 0;
+    const inactive = currentTime - room.lastActivity > INACTIVE_TIMEOUT;
+    return !(noUsers && inactive);
   });
-  
+
   if (initialCount !== rooms.length) {
     console.log(`Cleaned up ${initialCount - rooms.length} inactive rooms`);
   }

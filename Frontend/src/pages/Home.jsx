@@ -149,27 +149,28 @@ export default function Home() {
               {loading ? (
                 <p className="text-gray-500 text-center py-2">Loading rooms...</p>
               ) : allRooms.length > 0 ? (
-                <ul className="divide-y">
-                  {allRooms
-                    .filter(room => !room.gameOver && !room.isFull)
-                    .map(room => (
-                      <li key={room.id} className="py-2">
-                        <div className="flex justify-between items-center">
-                          <span>{room.name}</span>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm text-gray-500">
-                              {room.playerCount}/2 players
-                            </span>
+                <ul>
+                  {allRooms.map(room => (
+                    <li key={room.id} className="py-2">
+                      <div className="flex justify-between items-center">
+                        <span>{room.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-500">
+                            {room.playerCount}/2 players
+                          </span>
+                          {/* Optionally, show join button only if not full/gameOver */}
+                          {!room.isFull && !room.gameOver && (
                             <button
                               onClick={() => handleJoinExistingRoom(room.id, room.name)}
                               className="bg-green-500 hover:bg-green-600 text-white text-sm py-1 px-2 rounded"
                             >
                               Join
                             </button>
-                          </div>
+                          )}
                         </div>
-                      </li>
-                    ))}
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p className="text-gray-500 text-center py-2">No active rooms available</p>
