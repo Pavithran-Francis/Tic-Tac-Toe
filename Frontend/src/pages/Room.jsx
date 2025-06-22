@@ -177,11 +177,10 @@ export default function Room() {
   // Handle socket events
   useEffect(() => {
     if (!socket) return
-    
+
     // When a player joins
     socket.on('user-joined', () => {
       console.log('User joined')
-      
       // Broadcast our username and symbol to the room
       if (playerSymbol) {
         socket.emit('player-info', {
@@ -191,6 +190,25 @@ export default function Room() {
           symbol: playerSymbol
         })
       }
+      // Immediately fetch latest room data to update UI
+      fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}?passcode=${passcode}`)
+        .then(res => res.json())
+        .then(roomData => {
+          // Update players state here if needed
+          if (roomData.players.X) {
+            setPlayers(prev => ({
+              ...prev,
+              X: { ...prev.X, id: roomData.players.X, username: prev.X.username }
+            }))
+          }
+          if (roomData.players.O) {
+            setPlayers(prev => ({
+              ...prev,
+              O: { ...prev.O, id: roomData.players.O, username: prev.O.username }
+            }))
+          }
+        })
+        .catch(err => console.error('Error fetching after user joined:', err))
     })
     
     // Listen for other player's info
