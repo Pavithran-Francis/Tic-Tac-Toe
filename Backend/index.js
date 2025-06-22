@@ -61,6 +61,21 @@ app.post('/api/rooms/:roomId', (req, res) => {
   }
 });
 
+// Get room by ID and passcode
+app.get('/api/rooms/:roomId', (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { passcode } = req.query;
+    if (!passcode) {
+      return res.status(400).json({ error: 'Passcode is required' });
+    }
+    const room = roomManager.getRoomById(roomId, passcode);
+    res.json(room);
+  } catch (error) {
+    res.status(error.statusCode || 404).json({ error: error.message });
+  }
+});
+
 // Socket.IO with updated CORS settings
 const io = new Server(server, {
   cors: {
