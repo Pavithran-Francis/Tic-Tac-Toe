@@ -53,7 +53,7 @@ export default function CreateRoom({ setError }) {
       }
       
       // After creating a room, join it with the generated player ID
-      const joinResponse = await fetch(`/https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${data.id}`, {
+      const joinResponse = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${data.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

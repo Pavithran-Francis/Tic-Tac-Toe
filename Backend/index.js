@@ -38,6 +38,17 @@ app.options('*', cors());
 
 app.use(express.json()); // Parse incoming JSON
 
+// Add this route after your app.use(express.json()) and before app.listen()
+app.get('/api/rooms', (req, res) => {
+  try {
+    const search = req.query.search || '';
+    const rooms = roomManager.searchRooms(search);
+    res.json(rooms);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch rooms' });
+  }
+});
+
 // Socket.IO with updated CORS settings
 const io = new Server(server, {
   cors: {
@@ -190,8 +201,6 @@ app.post('/api/rooms', (req, res) => {
     res.status(error.statusCode || 409).json({ error: error.message });
   }
 });
-
-// The rest of your API routes remain largely the same
 
 // Health check endpoint
 app.get('/health', (req, res) => {
