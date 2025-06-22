@@ -7,7 +7,7 @@ export default function RoomSearch({ setSearchResults, setError }) {
     e.preventDefault()
     
     try {
-      const response = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms?search=${searchTerm}`)
+      const response = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms?search=${searchTerm}`)
       const data = await response.json()
       
       if (!response.ok) {

@@ -25,7 +25,7 @@ export default function Home() {
   const fetchAllRooms = async () => {
     try {
       setLoading(true)
-      const response = await fetch('https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms')
+      const response = await fetch('https://tic-tac-toe-production-0897.up.railway.app/api/rooms')
       
       if (!response.ok) {
         console.error('Failed to fetch rooms:', response.status)
@@ -68,7 +68,7 @@ export default function Home() {
 
   const joinRoomWithId = async (roomId, roomName, passcode, playerId) => {
     try {
-      const joinResponse = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}`, {
+      const joinResponse = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

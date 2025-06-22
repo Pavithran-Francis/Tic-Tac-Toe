@@ -20,7 +20,7 @@ export default function useSocket(roomId) {
         
         // Connect to the socket server with more reliable options
         const serverUrl = import.meta.env.PROD 
-          ? 'https://tic-tac-toe-backend-pavidev.up.railway.app' 
+          ? 'https://tic-tac-toe-production-0897.up.railway.app' 
           : 'http://localhost:3001';
           
         console.log(`Attempting to connect to socket server at: ${serverUrl}`);

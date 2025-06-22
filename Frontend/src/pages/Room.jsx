@@ -63,7 +63,7 @@ export default function Room() {
     
     const fetchRoomData = async () => {
       try {
-        const response = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}?passcode=${passcode}`)
+        const response = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}?passcode=${passcode}`)
         
         if (!response.ok) {
           console.error('Failed to fetch room data:', response.status)
@@ -110,7 +110,7 @@ export default function Room() {
         } else {
           // Player is not in the room, try to join
           try {
-            const joinResponse = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}`, {
+            const joinResponse = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -290,7 +290,7 @@ export default function Room() {
     socket.on('user-left', () => {
       console.log('User left')
       // Refresh the room data when someone leaves
-      fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}?passcode=${passcode}`)
+      fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}?passcode=${passcode}`)
         .then(res => res.json())
         .then(roomData => {
           if (!roomData.players.O) {
@@ -322,7 +322,7 @@ export default function Room() {
     }
     
     try {
-      const response = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}`, {
+      const response = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -391,7 +391,7 @@ export default function Room() {
   // Handle exit room
   const handleExit = async () => {
     try {
-      await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}`, {
+      await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -418,7 +418,7 @@ export default function Room() {
     setSwitchPlayersOnRestart(true)
     
     try {
-      const response = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${roomId}/restart`, {
+      const response = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${roomId}/restart`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

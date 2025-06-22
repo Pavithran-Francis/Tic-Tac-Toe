@@ -37,7 +37,7 @@ export default function JoinRoom({ setError }) {
       localStorage.setItem('ticTacToeUsername', username)
       
       // First get room ID by name
-      const searchResponse = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms?search=${encodeURIComponent(roomName)}`)
+      const searchResponse = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms?search=${encodeURIComponent(roomName)}`)
       
       if (!searchResponse.ok) {
         setError('Failed to search for room')
@@ -55,7 +55,7 @@ export default function JoinRoom({ setError }) {
       }
       
       // Then try to join with passcode
-      const joinResponse = await fetch(`https://tic-tac-toe-backend-pavidev.up.railway.app/api/rooms/${room.id}`, {
+      const joinResponse = await fetch(`https://tic-tac-toe-production-0897.up.railway.app/api/rooms/${room.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

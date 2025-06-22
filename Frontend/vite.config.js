@@ -8,13 +8,15 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://tic-tac-toe-backend-pavidev.up.railway.app/',
+        target: 'https://tic-tac-toe-production-0897.up.railway.app/',
         changeOrigin: true
       },
       '/socket.io': {
-        target: 'https://tic-tac-toe-backend-pavidev.up.railway.app/',
+        target: 'https://tic-tac-toe-production-0897.up.railway.app/',
         ws: true
       }
     }
   }
 })
+
+const response = await fetch('https://tic-tac-toe-production-0897.up.railway.app/api/rooms');
