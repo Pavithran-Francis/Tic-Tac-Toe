@@ -60,7 +60,8 @@ export default function CreateRoom({ setError }) {
         },
         body: JSON.stringify({ 
           passcode,
-          playerId
+          playerId,
+          username
         }),
       })
       

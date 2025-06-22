@@ -49,6 +49,18 @@ app.get('/api/rooms', (req, res) => {
   }
 });
 
+// Join a room (POST /api/rooms/:roomId)
+app.post('/api/rooms/:roomId', (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { passcode, playerId, username } = req.body;
+    const room = roomManager.joinRoom(roomId, passcode, playerId, username);
+    res.json(room);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
+
 // Socket.IO with updated CORS settings
 const io = new Server(server, {
   cors: {
